@@ -18,7 +18,7 @@ int main()
 {
     
     typedef DGtal::ImageContainerBySTLVector< DGtal::Z2i::Domain, unsigned char> Image;
-    std::string filename = "feep.pgm";
+    std::string filename = "circle.pgm";
     Image image = DGtal::PGMReader<Image>::importPGM(filename);;
     //Image image = DGtal::ITKReader<Image>::importITK(filename);
     
