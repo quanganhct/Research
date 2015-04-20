@@ -55,6 +55,7 @@ int main()
         //aBoard<< CustomStyle( fc.className(),new CustomColors(  cmap_grad(i),  Color::None ) );
         //aBoard << fc;
         std::vector<Z2i::Point> vect = m_vector.at(i);
+        std::cout << "Vect " << i << std::endl;
         for (unsigned int j=0; j<vect.size(); j++){
             std::cout << vect.at(j) << " x y : " << vect.at(j).myArray[0] << ":" << vect.at(j).myArray[1] << std::endl;
         }
