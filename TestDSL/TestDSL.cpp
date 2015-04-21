@@ -123,7 +123,7 @@ int main()
 
     pair<Container, ConstIterator> p = adjustVector(contour);
     contour = p.first;
-
+ 
     ConstIterator startPoint = p.second;
     ConstIterator current = contour.begin();
 
