@@ -65,13 +65,13 @@ using namespace DGtal;
 
 
 void
-computeCurvatureBCC(double h, const FreemanChain<Z2i::Integer> &fc, std::vector<double> &resCurvature, 
-                    bool isClosed){
+computeCurvatureBCC(double h, const FreemanChain<Z2i::Integer> &fc, std::vector<double> &resCurvature,bool isClosed){
   std::vector<Z2i::Point> vectPoints;
   FreemanChain<Z2i::Integer>::getContourPoints( fc, vectPoints ); 
   
   typedef BinomialConvolver<std::vector<Z2i::Point>::const_iterator, double> MyBinomialConvolver;
   typedef CurvatureFromBinomialConvolverFunctor< MyBinomialConvolver, double >   CurvatureBCFct;
+
   BinomialConvolverEstimator< MyBinomialConvolver, CurvatureBCFct> BCCurvatureEstimator;
   BCCurvatureEstimator.init( h, vectPoints.begin(), vectPoints.end(), isClosed );
   resCurvature.clear();
@@ -115,11 +115,12 @@ int main( int argc, char** argv )
     {
       trace.info()<< "Generate the Curvature Scale Space image using a binomial convolver based estimator." <<std::endl
                   << "The x axis is associated to the contour point and the y axis to the scale. The color represent the curvature values included between the cutoff values (set to 10 by default)."
-                  <<std::endl << "Basic usage: "<<std::endl
+                  << std::endl << "Basic usage: "<<std::endl
       << "\t main -f ${DGtal}/examples/samples/contourS.fc --gridStepInit 0.001 --gridStepIncrement  0.0005 --gridStepFinal 0.05 -o cssResu.ppm "<<std::endl
       << general_opt << "\n";
       return 0;
     }
+
   double h_initial = vm["gridStepInit"].as<double>();
   double h_increment = vm["gridStepIncrement"].as<double>();
   double h_final = vm["gridStepFinal"].as<double>();

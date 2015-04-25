@@ -16,7 +16,7 @@ int main()
 {
     
     typedef DGtal::ImageContainerBySTLVector< DGtal::Z2i::Domain, unsigned char> Image;
-    std::string filename = "../Research/images/circle3.pgm";
+    std::string filename = "../Research/images/project2.pgm";
     Image image = DGtal::PGMReader<Image>::importPGM(filename);
     
     Z2i::KSpace ks;
