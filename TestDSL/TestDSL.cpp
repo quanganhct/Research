@@ -13,8 +13,8 @@
 #include "DGtal/io/colormaps/GradientColorMap.h"
 #include "DGtal/io/Color.h"
 #include <iostream>
-#include <math.h>
 #include <cmath>
+#include <algorithm>
 
 using namespace DGtal;
 using namespace std;
@@ -25,7 +25,7 @@ typedef std::vector<Z2i::Z2::Point> Container;
       // Iterator on the container
 typedef Container::const_iterator ConstIterator;
       // StandardDSS4 computer
-typedef StandardDSS4Computer<ConstIterator> DSSComputer;  
+typedef  StandardDSS4Computer<ConstIterator> DSSComputer;  
 
 
 pair<Container, int> adjustVector(Container contour){
@@ -85,7 +85,21 @@ pair<Container, int> adjustVector(Container contour){
     return p;
 }
 
-double calculCurvature(Container contour, ConstIterator current){
+void displayABW(DSSComputer dss){
+    double a = dss.primitive().a();
+    double b = dss.primitive().b();
+    double w = dss.primitive().omega();
+    cout << " A:" << a << " B:" << b << " W:" << w << endl;
+}
+
+double computeWidth(DSSComputer dss){
+    double a = abs(dss.primitive().a());
+    double b = abs(dss.primitive().b());
+    double w = dss.primitive().omega();
+    return double(w-1)/max(a, b);
+}
+
+double calculCurvature(Container contour, ConstIterator current, int width){
     DSSComputer front, back;
     ConstIterator it_f, it_b;
 
@@ -96,15 +110,28 @@ double calculCurvature(Container contour, ConstIterator current){
     it_b = current;
 
     while((front.end() != contour.end()) && front.extendFront()){
+        if(computeWidth(front) > width){
+            front.retractFront();
+            break;
+        }
         it_f++;
     }
+
     if (front.end() == contour.end()){
         it_f--;
     }
 
     while((back.begin() != contour.begin()) && back.extendBack()){
+        if(computeWidth(back) > width){
+            back.retractBack();
+            break;
+        }
         it_b--;
     }
+    cout << *current << endl;
+    cout << " V front:" << abs(it_f-current) << " points " << computeWidth(front); displayABW(front);
+    cout << " V back:" << abs(it_b-current) << " points " << computeWidth(back); displayABW(back);
+
 
     if (back.begin() == contour.begin()){
         //it_b++;
@@ -131,7 +158,7 @@ double calculCurvature(Container contour, ConstIterator current){
 
 int main()
 {
-    int width = 2;
+    int width = 1;
     
     typedef DGtal::ImageContainerBySTLVector< DGtal::Z2i::Domain, unsigned char> Image;
     std::string filename = "../Research/images/QAcircle.pgm";
@@ -186,27 +213,11 @@ int main()
     */
     
     for (int i=0; i<size; i++){
-        cout << *startPoint << " curvature " << calculCurvature(contour, startPoint) << endl;
+        cout << *startPoint << " curvature " << calculCurvature(contour, startPoint, width) << endl;
         startPoint++;
     }
 
+    cout << "change" << endl;
     
-    /*
-    theDSSComputer.init( current );
-    while ( ( theDSSComputer.end() != contour.end() ) &&
-          ( theDSSComputer.extendFront() ) ) {
-        cout << "Iter " << *current << endl;
-        cout << "PointFront " << theDSSComputer.front() << endl;
-    }
-    */
-
-      // Trace to the standard output
-    //cout << theDSSComputer << endl;
-
-    //DSSComputer::Primitive theDSS = theDSSComputer.primitive(); 
-    //cout << theDSS << endl; 
-    
-    
-    //aBoard.saveEPS("freemanChainFromImage.eps");
     return 0;
 }
