@@ -66,6 +66,7 @@ using namespace DGtal;
 
 void
 computeCurvatureBCC(double h, const FreemanChain<Z2i::Integer> &fc, std::vector<double> &resCurvature,bool isClosed){
+ // std::cout<<"Hello World\n"; 
   std::vector<Z2i::Point> vectPoints;
   FreemanChain<Z2i::Integer>::getContourPoints( fc, vectPoints ); 
   
@@ -116,7 +117,7 @@ int main( int argc, char** argv )
       trace.info()<< "Generate the Curvature Scale Space image using a binomial convolver based estimator." <<std::endl
                   << "The x axis is associated to the contour point and the y axis to the scale. The color represent the curvature values included between the cutoff values (set to 10 by default)."
                   << std::endl << "Basic usage: "<<std::endl
-      << "\t main -f ${DGtal}/examples/samples/contourS.fc --gridStepInit 0.001 --gridStepIncrement  0.0005 --gridStepFinal 0.05 -o cssResu.ppm "<<std::endl
+      << "\t main -f ../Research/cookbook/samples/contourS.fc --gridStepInit 0.001 --gridStepIncrement  0.0005 --gridStepFinal 0.05 -o result.ppm "<<std::endl
       << general_opt << "\n";
       return 0;
     }
@@ -142,6 +143,7 @@ int main( int argc, char** argv )
     
     trace.progressBar(0, height);
     double h= h_initial;
+    //bool flag = false;
     for(double l= 0; l < height; l++ ){
       // Binomial estimator
       trace.progressBar(l, height);
@@ -149,13 +151,17 @@ int main( int argc, char** argv )
       computeCurvatureBCC(h, vectFcs.at(0), curvaturesBCC, isClosed);
       // Output
       unsigned int j = 0;
-      for ( std::vector<double>::const_iterator it = curvaturesBCC.begin(), it_end = curvaturesBCC.end();
-            it != it_end; ++it, ++j ) {
-        double c = *it;
-        c = c<-curvatureCutOff? -curvatureCutOff: c;
-        c = c>curvatureCutOff? curvatureCutOff: c;
-        cssImage.setValue(Z2i::Point(j, l), c); 
-      }      
+      //if(flag == false){
+        for ( std::vector<double>::const_iterator it = curvaturesBCC.begin(), it_end = curvaturesBCC.end(); it != it_end; ++it, ++j ){
+          double c = *it;
+          c = c<-curvatureCutOff? -curvatureCutOff: c;
+          c = c>curvatureCutOff? curvatureCutOff: c;
+          cssImage.setValue(Z2i::Point(j, l), c); 
+          flag = true;
+        }   
+     // }
+         
+
       h=h+h_increment;
     }
     trace.progressBar(height, height);
