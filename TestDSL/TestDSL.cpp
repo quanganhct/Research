@@ -8,6 +8,7 @@
 #include "DGtal/topology/helpers/Surfaces.h"
 #include "DGtal/geometry/curves/FreemanChain.h"
 #include "DGtal/geometry/curves/ArithmeticalDSSComputer.h"
+#include "DGTal/io/writers/GenericWriter.h"
 
 #include "DGtal/io/boards/Board2D.h"
 #include "DGtal/io/colormaps/GradientColorMap.h"
@@ -18,6 +19,7 @@
 
 using namespace DGtal;
 using namespace std;
+using namespace DGtal::Z2i;
 
 typedef Z2i::Z2::Point MyPoint;
 
@@ -158,6 +160,8 @@ double calculCurvature(Container contour, ConstIterator current, int width){
 
 int main()
 {
+    typedef DGtal::ImageContainerBySTLMap<DGtal::Z2i::Domain, unsigned char> Image2D;
+
     int width = 1;
     
     typedef DGtal::ImageContainerBySTLVector< DGtal::Z2i::Domain, unsigned char> Image;
@@ -213,11 +217,25 @@ int main()
     */
     
     for (int i=0; i<size; i++){
-        cout << *startPoint << " curvature " << calculCurvature(contour, startPoint, width) << endl;
+        double value = calculCurvature(contour, startPoint, width);
+        vectorCouvature.push_back(value);
+        cout << *startPoint << " curvature " << value << endl;
         startPoint++;
     }
 
-    cout << "change" << endl;
-    
+    cout << "size:" << vectorCouvature.size() << endl;
+    Board2D board;
+    Domain domain(MyPoint(0, -100), MyPoint(vectorCouvature.size()+1, 100));
+    board << domain;
+    for(int i=0; i<vectorCouvature.size(); i++){
+      int c = int(vectorCouvature.at(i)*100.0);
+      board << MyPoint(i, c);
+    }
+
+    board.saveEPS("result.eps");
+
+
+
+
     return 0;
 }
