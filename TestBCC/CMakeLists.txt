@@ -2,6 +2,11 @@ PROJECT(TestBCC)
 
 cmake_minimum_required (VERSION 2.6) 
 
+FIND_PACKAGE (OPENCL)
+
+INCLUDE_DIRECTORIES( 
+    ${part1_SOURCE_DIR}/../opencl10
+)
 
 FIND_PACKAGE(DGtal 0.8 REQUIRED)
 INCLUDE_DIRECTORIES(${DGTAL_INCLUDE_DIRS})
@@ -48,6 +53,12 @@ if ( Boost_FOUND )
    SET(DGtalLibInc ${Boost_INCLUDE_DIRS})
 endif( Boost_FOUND )
 
+#the source files we want to compile into the library
+set (LIBCXXFILES cll.cpp part1.cpp util.cpp)
+#set a CMake variable to name the library
+SET(cllib part1)
+ADD_LIBRARY(${cllib} ${LIBCXXFILES})
+
 
 SET(DGTAL_TOOLS_SRC
   main
@@ -57,6 +68,10 @@ SET(DGTAL_TOOLS_SRC
 FOREACH(FILE ${DGTAL_TOOLS_SRC})
   add_executable(${FILE} ${FILE})
   target_link_libraries (${FILE}  ${DGTAL_LIBRARIES} ${DGtalToolsLibDependencies})
+  TARGET_LINK_LIBRARIES (${FILE}
+   ${cllib}
+   ${OPENCL_LIBRARIES}
+)
   install(TARGETS ${FILE}
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib

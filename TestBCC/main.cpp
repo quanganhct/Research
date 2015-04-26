@@ -127,7 +127,24 @@ int main( int argc, char** argv )
   double h_final = vm["gridStepFinal"].as<double>();
   double curvatureCutOff = vm["curvatureCutOff"].as<double>();
   
-  
+  /*
+
+  OPEN CL PART
+
+
+  */
+
+    CL example;
+    
+    //load and build our CL program from the file
+    #include "kernel.cl" //const char* kernel_source is defined in here
+    example.loadProgram(kernel_source);
+
+    //initialize the kernel and send data from the CPU to the GPU
+    example.popCorn();
+    //execute the kernel
+    example.runKernel();
+
   if(vm.count("FreemanChain")){
     std::string fileName = vm["FreemanChain"].as<std::string>();    
     std::vector< DGtal::FreemanChain<Z2i::Integer>  > vectFcs =  PointListReader< Z2i::Point >:: getFreemanChainsFromFile<Z2i::Integer> (fileName);     
@@ -157,7 +174,7 @@ int main( int argc, char** argv )
           c = c<-curvatureCutOff? -curvatureCutOff: c;
           c = c>curvatureCutOff? curvatureCutOff: c;
           cssImage.setValue(Z2i::Point(j, l), c); 
-          flag = true;
+          //flag = true;
         }   
      // }
          
