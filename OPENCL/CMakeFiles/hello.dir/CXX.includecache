@@ -1,0 +1,16 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/nguyenquanganh/Cours/Master2/Project/MyProject/M2Project/Research/OPENCL/hello.cpp
+stdio.h
+-
+stdlib.h
+-
+OpenCL/opencl.h
+-
+

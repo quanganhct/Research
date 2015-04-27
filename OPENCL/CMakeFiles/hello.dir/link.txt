@@ -1,0 +1,1 @@
+/usr/bin/c++    -std=c++0x -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk -Wl,-search_paths_first -Wl,-headerpad_max_install_names   CMakeFiles/hello.dir/hello.cpp.o  -o hello  -L/usr/local/Cellar/dgtal/0.8.0/lib  -framework OpenCL -Wl,-rpath,/usr/local/Cellar/dgtal/0.8.0/lib 
