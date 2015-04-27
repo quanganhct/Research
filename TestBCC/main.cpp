@@ -59,8 +59,11 @@
 #include <vector>
 #include <string>
 #include <iomanip>
-
-
+#ifdef __APPLE__
+#include <OpenCL/opencl.h>
+#else
+#include <CL/cl.h>
+#endif
 using namespace DGtal;
 
 
@@ -102,7 +105,7 @@ int main( int argc, char** argv )
 
   typedef ImageContainerBySTLVector<Z2i::Domain, double > Image2D;
 
- 
+
   bool parseOK=true;
   po::variables_map vm;
   try{
@@ -127,23 +130,21 @@ int main( int argc, char** argv )
   double h_final = vm["gridStepFinal"].as<double>();
   double curvatureCutOff = vm["curvatureCutOff"].as<double>();
   
-  /*
+/*
 
   OPEN CL PART
 
 
-  */
+*/
 
-    CL example;
-    
-    //load and build our CL program from the file
-    #include "kernel.cl" //const char* kernel_source is defined in here
-    example.loadProgram(kernel_source);
 
-    //initialize the kernel and send data from the CPU to the GPU
-    example.popCorn();
-    //execute the kernel
-    example.runKernel();
+
+
+/*
+
+  END OPEN CL PART
+
+*/
 
   if(vm.count("FreemanChain")){
     std::string fileName = vm["FreemanChain"].as<std::string>();    
