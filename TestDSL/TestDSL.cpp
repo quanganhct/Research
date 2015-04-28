@@ -16,6 +16,11 @@
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <OpenCL/opencl.h>
+#include <stdlib.h>
+
+#define MEM_SIZE (128)
+#define MAX_SOURCE_SIZE (0x100000)
 
 using namespace DGtal;
 using namespace std;
@@ -158,6 +163,158 @@ double calculCurvature(Container contour, ConstIterator current, int width){
     return sign/rayon;
 }
 
+void calculCurvatureForKernel(Container contour, ConstIterator current, int width, std::vector<int> *k_points
+                                , std::vector<int> *l_points, std::vector<int> *r_points){
+    DSSComputer front, back;
+    ConstIterator it_f, it_b;
+
+    front.init(current);
+    back.init(current);
+
+    it_f = current;
+    it_b = current;
+
+    while((front.end() != contour.end()) && front.extendFront()){
+        if(computeWidth(front) > width){
+            front.retractFront();
+            break;
+        }
+        it_f++;
+    }
+
+    if (front.end() == contour.end()){
+        it_f--;
+    }
+
+    while((back.begin() != contour.begin()) && back.extendBack()){
+        if(computeWidth(back) > width){
+            back.retractBack();
+            break;
+        }
+        it_b--;
+    }
+    //cout << *current << endl;
+    //cout << " V front:" << abs(it_f-current) << " points " << computeWidth(front); displayABW(front);
+    //cout << " V back:" << abs(it_b-current) << " points " << computeWidth(back); displayABW(back);
+
+
+    if (back.begin() == contour.begin()){
+        //it_b++;
+    }
+
+    MyPoint k = *current;
+    MyPoint l = *it_b;
+    MyPoint r = *it_f;
+    cout << "K " << k.myArray[0] << " " << k.myArray[1] <<  endl;
+
+    (*k_points).push_back(k.myArray[0]); (*k_points).push_back(k.myArray[1]);
+    (*l_points).push_back(l.myArray[0]); (*l_points).push_back(l.myArray[1]);
+    (*r_points).push_back(r.myArray[0]); (*r_points).push_back(r.myArray[1]);
+}
+
+void calculateVectorCurvature(int* l, int* k, int* r, float* curvature, int size){
+    cl_device_id device_id = NULL;
+    cl_context context = NULL;
+    cl_command_queue command_queue = NULL;
+    cl_program program = NULL;
+    cl_kernel kernel = NULL;
+    cl_platform_id platform_id = NULL;
+    cl_uint ret_num_devices;
+    cl_uint ret_num_platforms;
+    cl_int error;
+
+    char string[MEM_SIZE];
+ 
+    FILE *fp;
+    char fileName[] = "./dsl.cl";
+    char *source_str;
+    size_t source_size;
+
+    fp = fopen(fileName, "r");
+    if (!fp) {
+        fprintf(stderr, "Failed to load kernel.\n");
+        exit(1);
+    }
+    source_str = (char*)malloc(MAX_SOURCE_SIZE);
+    source_size = fread(source_str, 1, MAX_SOURCE_SIZE, fp);
+    fclose(fp);
+
+    error = clGetPlatformIDs(1, &platform_id, &ret_num_platforms);
+    error = clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_DEFAULT, 1, &device_id, &ret_num_devices);
+ 
+    /* Create OpenCL context */
+    context = clCreateContext(NULL, 1, &device_id, NULL, NULL, &error);
+ 
+    /* Create Command Queue */
+    command_queue = clCreateCommandQueue(context, device_id, 0, &error);
+ 
+    const int mem_size = sizeof(int)*size*2;
+    cl_mem k_points = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, mem_size, k, &error);
+    cl_mem r_points = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, mem_size, r, &error);
+    cl_mem l_points = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, mem_size, l, &error);
+
+    cl_mem vectCourvature = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float)*size, NULL, &error);
+
+    program = clCreateProgramWithSource(context, 1, (const char **)&source_str, (const size_t *)&source_size, &error);
+    assert(error == CL_SUCCESS);
+
+    //error = clBuildProgram(program, 1, &device_id, NULL, NULL, NULL);
+    error = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+    assert(error == CL_SUCCESS);
+
+    kernel = clCreateKernel(program, "curvature", &error);
+    assert(error == CL_SUCCESS);
+
+    error = clSetKernelArg(kernel, 0, sizeof(cl_mem), &l_points);
+    error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &k_points);
+    error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &r_points);
+    error |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &vectCourvature);
+    error |= clSetKernelArg(kernel, 4, sizeof(int), &size);
+    assert(error == CL_SUCCESS);
+
+    const size_t local_ws = 64;
+    const size_t global_ws = 64;
+
+
+    error = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, &global_ws, &local_ws, 0, NULL, NULL);
+
+    std::vector<int> l_error;
+    l_error.push_back(CL_INVALID_PROGRAM_EXECUTABLE);
+    l_error.push_back(CL_INVALID_COMMAND_QUEUE);
+    l_error.push_back(CL_INVALID_KERNEL);
+    l_error.push_back(CL_INVALID_CONTEXT);
+    l_error.push_back(CL_INVALID_KERNEL_ARGS);
+    l_error.push_back(CL_INVALID_WORK_DIMENSION);
+    l_error.push_back(CL_INVALID_WORK_GROUP_SIZE);
+    l_error.push_back(CL_INVALID_WORK_ITEM_SIZE);
+    l_error.push_back(CL_INVALID_GLOBAL_OFFSET);
+    l_error.push_back(CL_OUT_OF_RESOURCES);
+    l_error.push_back(CL_MEM_OBJECT_ALLOCATION_FAILURE);
+    l_error.push_back(CL_INVALID_EVENT_WAIT_LIST);
+    l_error.push_back(CL_OUT_OF_HOST_MEMORY);
+
+    //cout << "error :" << error << endl;
+    //cout << "CL_DEVICE_MAX_WORK_GROUP_SIZE " << CL_DEVICE_MAX_WORK_GROUP_SIZE << endl;
+    /*
+    for(int i=0; i<l_error.size(); i++){
+        cout << l_error[i] << endl;
+    }
+    */
+    //assert(error == CL_INVALID_WORK_GROUP_SIZE);
+    assert(error == CL_SUCCESS);
+
+    clEnqueueReadBuffer(command_queue, vectCourvature, CL_TRUE, 0, size, curvature, 0, NULL, NULL);
+
+    clReleaseMemObject(k_points);
+    clReleaseMemObject(l_points);
+    clReleaseMemObject(r_points);
+    clReleaseMemObject(vectCourvature);
+
+    clReleaseKernel(kernel);
+    clReleaseCommandQueue(command_queue);
+    clReleaseContext(context);
+}
+
 int main()
 {
     typedef DGtal::ImageContainerBySTLMap<DGtal::Z2i::Domain, unsigned char> Image2D;
@@ -209,20 +366,45 @@ int main()
     vector<double> vectorCouvature;
 
     ConstIterator i = startPoint;
-    /*
-    while (i != contour.end()){
-        cout << "I : " << *i << endl;
-        i++;
-    }
-    */
     
+    /*
     for (int i=0; i<size; i++){
         double value = calculCurvature(contour, startPoint, width);
         vectorCouvature.push_back(value);
         cout << *startPoint << " curvature " << value << endl;
         startPoint++;
     }
+    */
 
+    std::vector<int> k_points;
+    std::vector<int> l_points;
+    std::vector<int> r_points;
+    std::vector<float> curvature(size);
+
+    for (int i = 0; i < size; ++i)
+    {
+        calculCurvatureForKernel(contour, startPoint, width, &k_points, &l_points, &r_points);
+        startPoint++;
+    }
+
+    int* k_array = &k_points[0];
+    int* l_array = &l_points[0];
+    int* r_array = &r_points[0];
+    float* c_array = &curvature[0];
+
+    for (int i=0; i<k_points.size(); i++){
+        cout << "K " << k_points[i] << endl;
+    }
+
+    cout << "SIZE " << size << endl;
+
+    calculateVectorCurvature(l_array, k_array, r_array, c_array, size);
+    
+    for (int i=0; i<curvature.size(); i++){
+        cout << c_array[i] << endl;
+    }
+    
+    /*
     cout << "size:" << vectorCouvature.size() << endl;
     Board2D board;
     Domain domain(MyPoint(0, -100), MyPoint(vectorCouvature.size()+1, 100));
@@ -233,7 +415,7 @@ int main()
     }
 
     board.saveEPS("result.eps");
-
+    */
 
 
 
