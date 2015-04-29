@@ -92,6 +92,14 @@ pair<Container, int> adjustVector(Container contour){
     return p;
 }
 
+size_t shrRoundUp(size_t localWorkSize, size_t numItems) {
+    size_t result = localWorkSize;
+    while (result < numItems)
+        result += localWorkSize;
+    
+    return result;
+}
+
 void displayABW(DSSComputer dss){
     double a = dss.primitive().a();
     double b = dss.primitive().b();
@@ -135,9 +143,9 @@ double calculCurvature(Container contour, ConstIterator current, int width){
         }
         it_b--;
     }
-    cout << *current << endl;
-    cout << " V front:" << abs(it_f-current) << " points " << computeWidth(front); displayABW(front);
-    cout << " V back:" << abs(it_b-current) << " points " << computeWidth(back); displayABW(back);
+    //cout << *current << endl;
+    //cout << " V front:" << abs(it_f-current) << " points " << computeWidth(front); displayABW(front);
+    //cout << " V back:" << abs(it_b-current) << " points " << computeWidth(back); displayABW(back);
 
 
     if (back.begin() == contour.begin()){
@@ -205,7 +213,7 @@ void calculCurvatureForKernel(Container contour, ConstIterator current, int widt
     MyPoint k = *current;
     MyPoint l = *it_b;
     MyPoint r = *it_f;
-    cout << "K " << k.myArray[0] << " " << k.myArray[1] <<  endl;
+    //cout << "K " << k.myArray[0] << " " << k.myArray[1] <<  endl;
 
     (*k_points).push_back(k.myArray[0]); (*k_points).push_back(k.myArray[1]);
     (*l_points).push_back(l.myArray[0]); (*l_points).push_back(l.myArray[1]);
@@ -240,7 +248,7 @@ void calculateVectorCurvature(int* l, int* k, int* r, float* curvature, int size
     fclose(fp);
 
     error = clGetPlatformIDs(1, &platform_id, &ret_num_platforms);
-    error = clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_DEFAULT, 1, &device_id, &ret_num_devices);
+    error = clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_GPU, 1, &device_id, &ret_num_devices);
  
     /* Create OpenCL context */
     context = clCreateContext(NULL, 1, &device_id, NULL, NULL, &error);
@@ -253,13 +261,19 @@ void calculateVectorCurvature(int* l, int* k, int* r, float* curvature, int size
     cl_mem r_points = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, mem_size, r, &error);
     cl_mem l_points = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, mem_size, l, &error);
 
-    cl_mem vectCourvature = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(float)*size, NULL, &error);
+    cl_mem vectCourvature = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(cl_float)*size, NULL, &error);
 
     program = clCreateProgramWithSource(context, 1, (const char **)&source_str, (const size_t *)&source_size, &error);
     assert(error == CL_SUCCESS);
 
-    //error = clBuildProgram(program, 1, &device_id, NULL, NULL, NULL);
-    error = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+    error = clBuildProgram(program, 1, &device_id, NULL, NULL, NULL);
+    //error = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+
+    size_t len;
+    char buffer[9048];
+    clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+    printf("%s\n", buffer);
+
     assert(error == CL_SUCCESS);
 
     kernel = clCreateKernel(program, "curvature", &error);
@@ -273,8 +287,9 @@ void calculateVectorCurvature(int* l, int* k, int* r, float* curvature, int size
     assert(error == CL_SUCCESS);
 
     const size_t local_ws = 64;
-    const size_t global_ws = 64;
+    const size_t global_ws = shrRoundUp(local_ws, size);
 
+    cout << "groups :" << global_ws << endl;
 
     error = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, &global_ws, &local_ws, 0, NULL, NULL);
 
@@ -322,7 +337,7 @@ int main()
     int width = 1;
     
     typedef DGtal::ImageContainerBySTLVector< DGtal::Z2i::Domain, unsigned char> Image;
-    std::string filename = "../Research/images/QAcircle.pgm";
+    std::string filename = "../Research/images/rabbit.pgm";
     Image image = DGtal::PGMReader<Image>::importPGM(filename);;
      
     Z2i::KSpace ks;
@@ -365,17 +380,18 @@ int main()
 
     vector<double> vectorCouvature;
 
+    ConstIterator startPoint2 = startPoint;
     ConstIterator i = startPoint;
     
-    /*
+    
     for (int i=0; i<size; i++){
         double value = calculCurvature(contour, startPoint, width);
         vectorCouvature.push_back(value);
         cout << *startPoint << " curvature " << value << endl;
         startPoint++;
     }
-    */
-
+    
+    /*
     std::vector<int> k_points;
     std::vector<int> l_points;
     std::vector<int> r_points;
@@ -383,39 +399,47 @@ int main()
 
     for (int i = 0; i < size; ++i)
     {
-        calculCurvatureForKernel(contour, startPoint, width, &k_points, &l_points, &r_points);
-        startPoint++;
+        calculCurvatureForKernel(contour, startPoint2, width, &k_points, &l_points, &r_points);
+        startPoint2++;
     }
 
     int* k_array = &k_points[0];
     int* l_array = &l_points[0];
     int* r_array = &r_points[0];
-    float* c_array = &curvature[0];
+    //float* c_array = &curvature[0];
 
+    float* c_array = new float[size];
+    
     for (int i=0; i<k_points.size(); i++){
         cout << "K " << k_points[i] << endl;
     }
-
+    
     cout << "SIZE " << size << endl;
 
     calculateVectorCurvature(l_array, k_array, r_array, c_array, size);
     
-    for (int i=0; i<curvature.size(); i++){
+    for (int i=0; i<size; i++){
         cout << c_array[i] << endl;
     }
+    */
     
-    /*
     cout << "size:" << vectorCouvature.size() << endl;
     Board2D board;
     Domain domain(MyPoint(0, -100), MyPoint(vectorCouvature.size()+1, 100));
     board << domain;
     for(int i=0; i<vectorCouvature.size(); i++){
-      int c = int(vectorCouvature.at(i)*100.0);
+        int c = int(vectorCouvature.at(i)*100.0);
+        if (c>100){
+            c=100;
+        }
+        if (c<-100){
+            c=-100;
+        }
       board << MyPoint(i, c);
     }
 
-    board.saveEPS("result.eps");
-    */
+    board.saveEPS("result_rabbit.eps");
+    
 
 
 
