@@ -30,7 +30,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 #include <iostream>
-
+#include <typeinfo>
 #include "DGtal/base/Common.h"
 
 #include "DGtal/shapes/ShapeFactory.h"
@@ -42,7 +42,7 @@
 #include "DGtal/geometry/curves/FreemanChain.h"
 
 //Estimators
-#include "DGtal/geometry/curves/BinomialConvolver.h"
+#include "BinomialConvolver.h"
 
 
 // Generation of resulting image
@@ -59,32 +59,72 @@
 #include <vector>
 #include <string>
 #include <iomanip>
-#ifdef __APPLE__
-#include <OpenCL/opencl.h>
-#else
-#include <CL/cl.h>
-#endif
-
 #define MEM_SIZE (128)
 #define MAX_SOURCE_SIZE (0x100000)
+
 using namespace DGtal;
+using namespace std;
+using namespace DGtal::Z2i;
+
+typedef vector<Point>::const_iterator ConstIteratorOnPoints;
+typedef vector<double>::const_iterator iter;
 
 
-void
-computeCurvatureBCC(double h, const FreemanChain<Z2i::Integer> &fc, std::vector<double> &resCurvature,bool isClosed){
- // std::cout<<"Hello World\n"; 
-  std::vector<Z2i::Point> vectPoints;
-  FreemanChain<Z2i::Integer>::getContourPoints( fc, vectPoints ); 
-  
-  typedef BinomialConvolver<std::vector<Z2i::Point>::const_iterator, double> MyBinomialConvolver;
-  typedef CurvatureFromBinomialConvolverFunctor< MyBinomialConvolver, double >   CurvatureBCFct;
+void displayVector(vector<double> data){
+  int num = 0;
+  for(iter i = data.begin(); i != data.end(); ++i){
+    cout << "Vector n°" << num << " - " << *i << endl;
+    num++;
+  }
 
-  BinomialConvolverEstimator< MyBinomialConvolver, CurvatureBCFct> BCCurvatureEstimator;
+}
+
+void computeCurvatureBCC(double h, const FreemanChain<Z2i::Integer> &fc, vector<double> &resCurvature,bool isClosed){
+  vector<Z2i::Point> vectPoints;
+  FreemanChain<Z2i::Integer>::getContourPoints( fc, vectPoints );
+  typedef BinomialConvolver<vector<Z2i::Point>::const_iterator, double> myBC;
+  typedef CurvatureFromBinomialConvolverFunctor< myBC, double >   myBCFCT;
+
+  BinomialConvolverEstimator< myBC, myBCFCT> BCCurvatureEstimator;
   BCCurvatureEstimator.init( h, vectPoints.begin(), vectPoints.end(), isClosed );
   resCurvature.clear();
   resCurvature.resize(vectPoints.size());
-  BCCurvatureEstimator.eval( vectPoints.begin(), vectPoints.end(), resCurvature.begin() ); 
+  BCCurvatureEstimator.eval( vectPoints.begin(), vectPoints.end(), resCurvature.begin() );
+
+
+/*
+ *  General Variables
+ */
+//  unsigned int myN = BCCurvatureEstimator.getMyN();
+//  double myH = BCCurvatureEstimator.getMyH();
+//  Signal<double> myX = BCCurvatureEstimator.getMyX();
+//  Signal<double> myY = BCCurvatureEstimator.getMyY();
+//  Signal<double> myDX = BCCurvatureEstimator.getMyDX();
+//  Signal<double> myDY = BCCurvatureEstimator.getMyDY();
+//  Signal<double> myDDX = BCCurvatureEstimator.getMyDDX();
+//  Signal<double> myDDY = BCCurvatureEstimator.getMyDDY();
+//  ConstIteratorOnPoints myBegin;
+//  ConstIteratorOnPoints myEnd;
+//  cout << "myH is: " <<myH << endl;
+//
+//
+//  std::vector<Z2i::Point>::const_iterator itb = vectPoints.begin();
+//  std::vector<Z2i::Point>::const_iterator ite = vectPoints.end();
+//
+//
+//  for ( std::vector<Z2i::Point>::const_iterator it = itb; it != ite; ++it ){
+//    int i = 0;
+//    typename std::map<ConstIteratorOnPoints,int>::const_iterator
+//            map_it = myMapIt2Idx.find( it );
+//    if ( map_it != myMapIt2Idx.end() )
+//      i = map_it->second;
+//    double denom = pow( myDX[ i ] * myDX[ i ] + myDY[ i ] * myDY[ i ], 1.5 );
+//    double v = ( denom != double( 0.0 ) )? ( myDDX[ i ] * myDY[ i ] - myDDY[ i ] * myDX[ i ] ) / denom / myH : double( 0.0 );
+//    std::cout << "Value: " << v << std::endl;
+//    *resCurvature.begin()++ = v;
+//  }
 }
+
 
 
 
@@ -133,98 +173,10 @@ int main( int argc, char** argv )
   double h_final = vm["gridStepFinal"].as<double>();
   double curvatureCutOff = vm["curvatureCutOff"].as<double>();
   
-/*
-
-  OPEN CL PART
-
-
-*/
-  cl_device_id device_id = NULL;
-  cl_context context = NULL;
-  cl_command_queue command_queue = NULL;
-  cl_mem memobj = NULL;
-  cl_program program = NULL;
-  cl_kernel kernel = NULL;
-  cl_platform_id platform_id = NULL;
-  cl_uint ret_num_devices;
-  cl_uint ret_num_platforms;
-  cl_int ret;
-  char string[MEM_SIZE];
-
-  FILE *fp;
-  char fileName[] = "./hello.cl";
-  char *source_str;
-  size_t source_size;
-
-/* Load the source code containing the kernel*/
-  fp = fopen(fileName, "r");
-  if (!fp) {
-    fprintf(stderr, "Failed to load kernel.\n");
-    exit(1);
-  }
-  source_str = (char*)malloc(MAX_SOURCE_SIZE);
-  source_size = fread(source_str, 1, MAX_SOURCE_SIZE, fp);
-  fclose(fp);
-
-/* Get Platform and Device Info */
-  ret = clGetPlatformIDs(1, &platform_id, &ret_num_platforms);
-  ret = clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_DEFAULT, 1, &device_id, &ret_num_devices);
-
-/* Create OpenCL context */
-  context = clCreateContext(NULL, 1, &device_id, NULL, NULL, &ret);
-
-/* Create Command Queue */
-  command_queue = clCreateCommandQueue(context, device_id, 0, &ret);
-
-/* Create Memory Buffer */
-  memobj = clCreateBuffer(context, CL_MEM_READ_WRITE,MEM_SIZE * sizeof(char), NULL, &ret);
-
-/* Create Kernel Program from the source */
-  program = clCreateProgramWithSource(context, 1, (const char **)&source_str,
-                                      (const size_t *)&source_size, &ret);
-
-/* Build Kernel Program */
-  ret = clBuildProgram(program, 1, &device_id, NULL, NULL, NULL);
-
-/* Create OpenCL Kernel */
-  kernel = clCreateKernel(program, "hello", &ret);
-
-/* Set OpenCL Kernel Parameters */
-  ret = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&memobj);
-
-/* Execute OpenCL Kernel */
-  ret = clEnqueueTask(command_queue, kernel, 0, NULL,NULL);
-
-/* Copy results from the memory buffer */
-  ret = clEnqueueReadBuffer(command_queue, memobj, CL_TRUE, 0,
-                            MEM_SIZE * sizeof(char),string, 0, NULL, NULL);
-
-/* Display Result */
-  puts(string);
-
-/* Finalization */
-  ret = clFlush(command_queue);
-  ret = clFinish(command_queue);
-  ret = clReleaseKernel(kernel);
-  ret = clReleaseProgram(program);
-  ret = clReleaseMemObject(memobj);
-  ret = clReleaseCommandQueue(command_queue);
-  ret = clReleaseContext(context);
-
-  free(source_str);
-
-
-
-
-/*
-
-  END OPEN CL PART
-
-*/
 
   if(vm.count("FreemanChain")){
-    std::string fileName = vm["FreemanChain"].as<std::string>();    
-    std::vector< DGtal::FreemanChain<Z2i::Integer>  > vectFcs =  PointListReader< Z2i::Point >:: getFreemanChainsFromFile<Z2i::Integer> (fileName);     
+    string fileName = vm["FreemanChain"].as<std::string>();
+    vector< DGtal::FreemanChain<Z2i::Integer>  > vectFcs =  PointListReader< Z2i::Point >:: getFreemanChainsFromFile<Z2i::Integer> (fileName);
     bool isClosed = vectFcs.at(0).isClosed(); 
     
     
@@ -235,32 +187,33 @@ int main( int argc, char** argv )
     Image2D cssImage(domain);    
     HueShadeColorMap<double>  gradCurvature (-curvatureCutOff, curvatureCutOff);
     
-    trace.progressBar(0, height);
+   // trace.progressBar(0, height);
     double h= h_initial;
-    //bool flag = false;
     for(double l= 0; l < height; l++ ){
       // Binomial estimator
       trace.progressBar(l, height);
-      std::vector<double> curvaturesBCC;
+      vector<double> curvaturesBCC;
       computeCurvatureBCC(h, vectFcs.at(0), curvaturesBCC, isClosed);
+     // cout << "VectFcs.at(0)" << vectFcs.at(0) << endl;
+      //displayVector(curvaturesBCC);
       // Output
       unsigned int j = 0;
-      //if(flag == false){
         for ( std::vector<double>::const_iterator it = curvaturesBCC.begin(), it_end = curvaturesBCC.end(); it != it_end; ++it, ++j ){
           double c = *it;
           c = c<-curvatureCutOff? -curvatureCutOff: c;
           c = c>curvatureCutOff? curvatureCutOff: c;
-          cssImage.setValue(Z2i::Point(j, l), c); 
-          //flag = true;
-        }   
-     // }
-         
+          cssImage.setValue(Z2i::Point(j, l), c);
+        }
+
+
 
       h=h+h_increment;
     }
+
     trace.progressBar(height, height);
     trace.info() <<std::endl;
-    DGtal::GenericWriter<Image2D, 2, double, HueShadeColorMap<double> >::exportFile(vm["output"].as<std::string>(), cssImage, gradCurvature );       
+    DGtal::GenericWriter<Image2D, 2, double, HueShadeColorMap<double> >::exportFile(vm["output"].as<std::string>(), cssImage, gradCurvature );
   }
   return 0;
 }
+
