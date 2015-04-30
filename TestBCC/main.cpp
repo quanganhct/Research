@@ -163,7 +163,7 @@ int main( int argc, char** argv )
       trace.info()<< "Generate the Curvature Scale Space image using a binomial convolver based estimator." <<std::endl
                   << "The x axis is associated to the contour point and the y axis to the scale. The color represent the curvature values included between the cutoff values (set to 10 by default)."
                   << std::endl << "Basic usage: "<<std::endl
-      << "\t main -f ../Research/cookbook/samples/contourS.fc --gridStepInit 0.001 --gridStepIncrement  0.0005 --gridStepFinal 0.05 -o result.ppm "<<std::endl
+      << "\t main -f ../Research/images/contourS.fc --gridStepInit 0.001 --gridStepIncrement  0.0005 --gridStepFinal 0.05 -o result.ppm "<<std::endl
       << general_opt << "\n";
       return 0;
     }
