@@ -1,14 +1,10 @@
 PROJECT(TestBCC)
 
 cmake_minimum_required (VERSION 2.6)
-FIND_PACKAGE (OPENCL REQUIRED)
 FIND_PACKAGE(DGtal 0.8 REQUIRED)
-
-INCLUDE_DIRECTORIES(${OPENCL_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${DGTAL_INCLUDE_DIRS})
-
+INCLUDE_DIRECTORIES(${DGTAL_INCLUDE_DIRS})
 LINK_DIRECTORIES(${DGTAL_LIBRARY_DIRS})
-LINK_DIRECTORIES(${OPENCL_LIBRARY_DIRS})
  # -------------------------------------------------------------------------
  # This test is for instance used for ITK v3.x. ITK forces a limited
  # template depth. We remove this option.
@@ -21,8 +17,6 @@ LINK_DIRECTORIES(${OPENCL_LIBRARY_DIRS})
     CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_TMP}" )
      message ("         CMAKE_CXX_FLAGS=" ${CMAKE_CXX_FLAGS} )
   endif (CMAKE_CXX_FLAGS MATCHES "-ftemplate-depth-[0-9]*")
-
-
 
 
 # -----------------------------------------------------------------------------
@@ -58,7 +52,8 @@ SET(DGTAL_TOOLS_SRC
 
 FOREACH(FILE ${DGTAL_TOOLS_SRC})
   add_executable(${FILE} ${FILE})
-  target_link_libraries (${FILE}  ${DGTAL_LIBRARIES} ${DGtalToolsLibDependencies} ${OPENCL_LIBRARIES})
+
+  target_link_libraries (${DGTAL_TOOLS_SRC}  ${DGTAL_LIBRARIES} ${DGtalToolsLibDependencies})
   install(TARGETS ${FILE}
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
