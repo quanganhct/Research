@@ -330,14 +330,14 @@ void calculateVectorCurvature(int* l, int* k, int* r, float* curvature, int size
     clReleaseContext(context);
 }
 
-int main()
+int main( int argc, char* argv[])
 {
     typedef DGtal::ImageContainerBySTLMap<DGtal::Z2i::Domain, unsigned char> Image2D;
 
     int width = 1;
     
     typedef DGtal::ImageContainerBySTLVector< DGtal::Z2i::Domain, unsigned char> Image;
-    std::string filename = "../Research/images/rabbit.pgm";
+    std::string filename = argv[1];
     Image image = DGtal::PGMReader<Image>::importPGM(filename);;
      
     Z2i::KSpace ks;
@@ -438,7 +438,7 @@ int main()
       board << MyPoint(i, c);
     }
 
-    board.saveEPS("result_rabbit.eps");
+    board.saveEPS("result.eps");
     
 
 
