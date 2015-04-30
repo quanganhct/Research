@@ -426,7 +426,10 @@ int main( int argc, char* argv[])
     cout << "size:" << vectorCouvature.size() << endl;
     Board2D board;
     Domain domain(MyPoint(0, -100), MyPoint(vectorCouvature.size()+1, 100));
-    board << domain;
+    Color red( 255, 0, 0 );
+    Color dred( 192, 0, 0 );
+    board << domain << CustomStyle( MyPoint(0, 0).className(), new CustomColors( red, dred ) );
+
     for(int i=0; i<vectorCouvature.size(); i++){
         int c = int(vectorCouvature.at(i)*100.0);
         if (c>100){
